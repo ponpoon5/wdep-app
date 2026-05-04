@@ -27,3 +27,21 @@ export interface Question {
   hint: string;
   aiPrompt: string;
 }
+
+export type NeedKey = 'love' | 'power' | 'freedom' | 'fun' | 'survival';
+
+export interface NeedScore {
+  strength: number;
+  satisfaction: number;
+}
+
+export type NeedScores = Record<NeedKey, NeedScore>;
+
+export interface NeedAssessmentRecord {
+  id: string;
+  date: string;
+  scores: NeedScores;
+  smallStep: string;
+  topGapNeed: NeedKey;
+  sessionId?: string;
+}

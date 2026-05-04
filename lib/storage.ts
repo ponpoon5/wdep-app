@@ -1,4 +1,4 @@
-import { WDEPSession, DailyScore } from './types';
+import { WDEPSession, DailyScore, NeedAssessmentRecord } from './types';
 
 const STORAGE_KEY = 'wdep_sessions';
 
@@ -68,4 +68,32 @@ export function createSession(): WDEPSession {
     chatHistories: {},
     completed: false,
   };
+}
+
+const NEEDS_KEY = 'wdep_needs_assessments';
+
+export function getNeedAssessments(): NeedAssessmentRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(NEEDS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveNeedAssessment(record: NeedAssessmentRecord): void {
+  const records = getNeedAssessments();
+  const idx = records.findIndex((r) => r.id === record.id);
+  if (idx >= 0) {
+    records[idx] = record;
+  } else {
+    records.unshift(record);
+  }
+  localStorage.setItem(NEEDS_KEY, JSON.stringify(records));
+}
+
+export function deleteNeedAssessment(id: string): void {
+  const records = getNeedAssessments().filter((r) => r.id !== id);
+  localStorage.setItem(NEEDS_KEY, JSON.stringify(records));
 }

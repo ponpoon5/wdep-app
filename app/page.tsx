@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Brain, Download, Upload } from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, Brain, Download, Upload, HeartPulse } from 'lucide-react';
 import { getSessions, deleteSession } from '@/lib/storage';
 import { getUsageSummary, clearUsage, toYen } from '@/lib/usage';
 import { WDEPSession } from '@/lib/types';
@@ -118,6 +119,15 @@ export default function DashboardPage() {
             <Sparkles size={16} />
             新しいWDEPサイクルを始める
           </Button>
+          <div>
+            <Link
+              href="/needs"
+              className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-800 border border-violet-200 rounded-xl px-4 py-2.5 bg-white transition-colors font-medium"
+            >
+              <HeartPulse size={14} />
+              5つの基本的欲求チェック
+            </Link>
+          </div>
           <div className="flex justify-center gap-3">
             <button
               onClick={exportCSV}
