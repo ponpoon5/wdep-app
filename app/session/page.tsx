@@ -9,6 +9,7 @@ import { PhaseHeader } from '@/components/wdep/PhaseHeader';
 import { QuestionCard } from '@/components/wdep/QuestionCard';
 import { AnswerInput } from '@/components/wdep/AnswerInput';
 import { AIChat } from '@/components/wdep/AIChat';
+import { SAMICChecker } from '@/components/wdep/SAMICChecker';
 import { SessionSummary } from '@/components/wdep/SessionSummary';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { AlarmSetter } from '@/components/ui/AlarmSetter';
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function SessionPage() {
   const router = useRouter();
-  const { activeSession, currentQuestionId, startSession, setAnswer, addChatMessage, setCommitmentScore, completeSession, goToQuestion, clearSession } = useSessionStore();
+  const { activeSession, currentQuestionId, startSession, setAnswer, addChatMessage, setSamicChecks, setCommitmentScore, completeSession, goToQuestion, clearSession } = useSessionStore();
 
   useEffect(() => {
     if (!activeSession) {
@@ -122,6 +123,14 @@ export default function SessionPage() {
           value={activeSession.answers[currentQuestionId] ?? ''}
           onChange={handleAnswer}
         />
+
+        {question.phase === 'P' && (
+          <SAMICChecker
+            answer={activeSession.answers[currentQuestionId] ?? ''}
+            checks={activeSession.samicChecks?.[currentQuestionId] ?? []}
+            onChecksChange={(checks) => setSamicChecks(currentQuestionId, checks)}
+          />
+        )}
 
         <AIChat
           question={question}

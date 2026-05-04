@@ -10,6 +10,7 @@ export interface WDEPSession {
   updatedAt: string;
   answers: Record<number, string>;
   chatHistories: Record<number, ChatMessage[]>;
+  samicChecks?: Record<number, boolean[]>; // questionId → 7 booleans (SAMIC3)
   commitmentScore?: number;
   completed: boolean;
 }

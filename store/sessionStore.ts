@@ -11,6 +11,7 @@ interface SessionStore {
   loadSession: (session: WDEPSession) => void;
   setAnswer: (questionId: number, answer: string) => void;
   addChatMessage: (questionId: number, message: ChatMessage) => void;
+  setSamicChecks: (questionId: number, checks: boolean[]) => void;
   setCommitmentScore: (score: number) => void;
   completeSession: () => void;
   goToQuestion: (id: number) => void;
@@ -55,6 +56,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         ...activeSession.chatHistories,
         [questionId]: [...existing, message],
       },
+      updatedAt: new Date().toISOString(),
+    };
+    saveSession(updated);
+    set({ activeSession: updated });
+  },
+
+  setSamicChecks: (questionId, checks) => {
+    const { activeSession } = get();
+    if (!activeSession) return;
+    const updated: WDEPSession = {
+      ...activeSession,
+      samicChecks: { ...activeSession.samicChecks, [questionId]: checks },
       updatedAt: new Date().toISOString(),
     };
     saveSession(updated);
