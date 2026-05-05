@@ -1,6 +1,6 @@
 # WDEP コーチングアプリ 仕様書
 
-**バージョン**: 1.2.1  
+**バージョン**: 1.2.2  
 **最終更新**: 2026-05-05  
 **本番 URL**: https://wdep-app.vercel.app  
 **リポジトリ**: https://github.com/ponpoon5/wdep-app  
@@ -100,11 +100,21 @@
 
 ### 2.1 AI モデル
 
-| 用途 | Claude | Gemini |
+クライアントから送る `model` 識別子（論理キー）と、サーバー側で実際に呼び出される実モデル ID は分離されている。`app/api/chat/route.ts` の `CLAUDE_MODEL_IDS` でマッピング。
+
+| 論理キー | 実モデル ID | 用途 |
 |---|---|---|
-| セッション中チャット | claude-sonnet-4-6 | gemini-2.0-flash |
-| セッション完了アドバイス | claude-sonnet-4-6（maxTokens: 4096） | gemini-2.0-flash |
-| SAMIC3 AI 評価 | claude-sonnet-4-6（maxTokens: 600） | — |
+| `claude-haiku` | `claude-haiku-4-5-20251001` | 軽量・低コスト用途 |
+| `claude-sonnet` | `claude-sonnet-4-6` | 標準（デフォルト） |
+| `claude-opus` | `claude-opus-4-7` | 高品質アドバイス用途 |
+| `claude` | `claude-sonnet-4-6` | レガシー互換キー（過去の localStorage エントリ用） |
+| `gemini` | `gemini-1.5-flash`（Google） | Gemini 系 |
+
+| 呼び出し箇所 | モデル選択 | maxTokens |
+|---|---|---|
+| セッション中チャット（各問） | `preferredModel`（ユーザー切替）| 1024 |
+| セッション完了アドバイス | `adviceModel`（コンポーネント内 state）| 4096 |
+| SAMIC3 AI 評価 | `preferredModel`（共有） | 600 |
 
 ---
 
@@ -672,12 +682,17 @@ interface NeedAssessmentRecord {
 ### 7.7 UsageEntry（内部型）
 
 ```typescript
+// AIModel は lib/usage.ts で定義
+type AIModel = 'claude-haiku' | 'claude-sonnet' | 'claude-opus' | 'gemini';
+
 interface UsageEntry {
-  model: 'claude' | 'gemini';
+  model: string;       // 通常は AIModel。レガシー値 'claude' も localStorage に残り得る
   inputTokens: number;
   outputTokens: number;
 }
 ```
+
+> **互換性メモ**: 過去（v1.2.0 以前）に保存された `model: 'claude'` のエントリは、`PRICES['claude']`（Sonnet と同価格）にフォールバックして集計される。Haiku / Opus 価格には遡及されない。
 
 ---
 
@@ -700,6 +715,7 @@ interface UsageEntry {
 interface SessionStore {
   activeSession: WDEPSession | null;
   currentQuestionId: number;              // 1〜21
+  preferredModel: AIModel;                // セッション中チャット / SAMIC3 評価で共有
 
   startSession: () => void;               // 新規セッション作成・保存
   loadSession: (session) => void;         // 過去セッション再開（最後回答問へ移動）
@@ -708,10 +724,13 @@ interface SessionStore {
   setSamicChecks: (qId, checks) => void;  // SAMIC3 チェック状態保存
   setCommitmentScore: (score) => void;    // コミットメントスコア設定
   completeSession: () => void;            // セッション完了（completed: true）
-  goToQuestion: (id) => void;            // 問移動（保存なし）
-  clearSession: () => void;              // activeSession をクリア
+  goToQuestion: (id) => void;             // 問移動（保存なし）
+  clearSession: () => void;               // activeSession をクリア
+  setPreferredModel: (model) => void;     // モデル切替（AIChat と SAMICChecker で同期）
 }
 ```
+
+`preferredModel` の初期値は `'claude-sonnet'`。セッション完了アドバイス（`SessionSummary`）は独自の `adviceModel` ローカル state を持ち、ストアとは独立して切り替えられる。
 
 ---
 
@@ -727,7 +746,9 @@ AI チャット（ストリーミングレスポンス）。Claude と Gemini �
 {
   messages: { role: 'user' | 'assistant'; content: string }[];
   systemPrompt: string;
-  model?: 'claude' | 'gemini';  // デフォルト: 'claude'
+  model?: 'claude-haiku' | 'claude-sonnet' | 'claude-opus' | 'gemini' | 'claude';
+                                // デフォルト: 'claude-sonnet'
+                                // 'claude' はレガシー互換（Sonnet にフォールバック）
   maxTokens?: number;           // デフォルト: 1024
 }
 ```
@@ -739,14 +760,16 @@ Content-Type: text/plain; charset=utf-8
 Transfer-Encoding: chunked（ストリーミング）
 ```
 
-- テキストチャンクをストリーミング送信
-- 最後のチャンクに `\x00USAGE:{json}` マーカーを付与
+- 正常系: テキストチャンクをストリーミング送信、最終チャンクに `\x00USAGE:{json}` マーカー
+- Gemini API キー未設定: HTTP 500 + 本文 `Gemini APIキーが設定されていません。`
+- Gemini ランタイムエラー: HTTP 500（`startChat` 失敗時）/ ストリーム途中エラー時はチャット内に `[Geminiエラー: <message>]` を流して `controller.close()`
+- Claude エラー: SDK 例外がそのまま伝播（クライアント側の `useAIChat` で catch し `エラー: <message>` を assistant メッセージとして表示）
 
 **USAGE マーカーの JSON**
 
 ```typescript
 {
-  model: 'claude' | 'gemini';
+  model: string;        // リクエストで指定された論理キー（'claude-haiku' / 'claude-sonnet' / 'claude-opus' / 'gemini' / 'claude'）
   inputTokens: number;
   outputTokens: number;
 }
@@ -754,15 +777,17 @@ Transfer-Encoding: chunked（ストリーミング）
 
 **Claude 実装詳細**
 - SDK: `@anthropic-ai/sdk` の `client.messages.stream()`
-- モデル: `claude-sonnet-4-6`
+- 論理キー → 実モデル ID は §2.1 の `CLAUDE_MODEL_IDS` 表に従う
 - `inputTokens`: `message_start` イベントから取得
-- `outputTokens`: `message_delta` イベントの `usage.output_tokens` から取得
+- `outputTokens`: `message_delta` イベントの `usage.output_tokens` から取得（累計値）
+- USAGE マーカーには **リクエストで受け取った論理キーをそのまま** 詰める（実モデル ID ではない）
 
 **Gemini 実装詳細**
 - SDK: `@google/generative-ai` の `chat.sendMessageStream()`
-- モデル: `gemini-2.0-flash`
+- モデル: `gemini-1.5-flash`
 - `usageMetadata`: ストリーム完了後（`response.usageMetadata`）から取得
 - システムプロンプトは `systemInstruction` として設定
+- API キーは関数内で都度 `process.env.GOOGLE_GENERATIVE_AI_API_KEY` を参照（モジュール初期化時には参照しない）
 
 **クライアント側の USAGE マーカー処理**
 
@@ -872,15 +897,20 @@ maxTokens: 4096（アドバイスは長文を許容）
 
 ```typescript
 // lib/usage.ts
-const PRICES: Record<AIModel, { input: number; output: number }> = {
-  claude: { input: 3 / 1_000_000,    output: 15 / 1_000_000 },  // USD/token
-  gemini: { input: 0.10 / 1_000_000, output: 0.40 / 1_000_000 }, // USD/token
+const PRICES: Record<string, { input: number; output: number }> = {
+  'claude-haiku':  { input: 0.80  / 1_000_000, output: 4.00  / 1_000_000 },  // USD/token
+  'claude-sonnet': { input: 3.00  / 1_000_000, output: 15.00 / 1_000_000 },
+  'claude-opus':   { input: 15.00 / 1_000_000, output: 75.00 / 1_000_000 },
+  'gemini':        { input: 0.10  / 1_000_000, output: 0.40  / 1_000_000 },
+  // 旧バージョンの localStorage エントリ用（v1.2.0 以前は 'claude' を使用）
+  'claude':        { input: 3.00  / 1_000_000, output: 15.00 / 1_000_000 },
 };
 
 const JPY_RATE = 155; // 1 USD = 155 JPY（固定レート）
 
-// コスト計算
-cost_usd = inputTokens * PRICES[model].input + outputTokens * PRICES[model].output
+// コスト計算（未知のキーは Sonnet 価格にフォールバック）
+const price = PRICES[model] ?? PRICES['claude-sonnet'];
+cost_usd = inputTokens * price.input + outputTokens * price.output
 
 // 円換算表示
 toYen(usd):
@@ -900,13 +930,17 @@ toYen(usd):
 
 ### 12.2 トークンが記録されるイベント
 
-| 呼び出し元 | システムプロンプト長 | maxTokens | recordUsage |
-|---|---|---|---|
-| `useAIChat` (各問のチャット) | 大（WDEP_KNOWLEDGE 全文 + 質問メタ） | 1024 | ✅ |
-| `SessionSummary` (完了アドバイス) | 大（WDEP_KNOWLEDGE 全文 + 全21回答） | 4096 | ✅ |
-| `SAMICChecker` (P フェーズ AI 評価) | 中（SAMIC3 基準説明） | 600 | ✅ |
+| 呼び出し元 | モデル選択ソース | システムプロンプト長 | maxTokens | recordUsage |
+|---|---|---|---|---|
+| `useAIChat` (各問のチャット) | `sessionStore.preferredModel` | 大（WDEP_KNOWLEDGE 全文 + 質問メタ） | 1024 | ✅ |
+| `SessionSummary` (完了アドバイス) | コンポーネント内 `adviceModel` | 大（WDEP_KNOWLEDGE 全文 + 全21回答） | 4096 | ✅ |
+| `SAMICChecker` (P フェーズ AI 評価) | `sessionStore.preferredModel` | 中（SAMIC3 基準説明） | 600 | ✅ |
 
 すべて `/api/chat` 経由で課金が発生するため、3 経路すべてで `recordUsage()` が呼ばれていることを変更時に確認すること。
+
+### 12.3 モデル別の概算コスト（参考）
+
+`getUsageSummary()` はモデル別にトークン数とコストを集計してダッシュボードに表示する。Sonnet と Opus は 5 倍の価格差、Haiku は Sonnet の約 1/4。同じ質問を Opus で投げると Sonnet の約 5 倍課金される点に注意。
 
 ---
 
@@ -1138,3 +1172,4 @@ GOOGLE_GENERATIVE_AI_API_KEY=AIza...
 | 1.1.3 | 2026-04-25 | Vercel デプロイ（https://wdep-app.vercel.app） |
 | 1.2.0 | 2026-05-05 | SAMIC3 チェックウィザード追加（P フェーズ Q17〜Q21） |
 | 1.2.1 | 2026-05-05 | 使用トークン記録のバグ修正：SAMIC3 AI 評価で `recordUsage()` 未実行を解消／USAGE マーカー JSON のチャンク跨ぎ分断を許容するパーサに変更／モデル名を `claude-sonnet-4-6` に統一／§10・§12 に入力トークン累積仕様と CSV インポート時の再計算挙動を明記 |
+| 1.2.2 | 2026-05-05 | 仕様書を実装に再同期：Claude を Haiku/Sonnet/Opus の 3 階層 + Gemini に拡張（`CLAUDE_MODEL_IDS` マップ、価格表 4 モデル + legacy）／Gemini を `gemini-1.5-flash` に変更／Gemini API キー未設定・例外時のエラー表示仕様を追記／`SessionStore` に `preferredModel` / `setPreferredModel` を追加（AIChat と SAMICChecker で共有）／§12.2 にモデル選択ソース列を追加、§12.3 にモデル別コスト感を追記／レガシー `'claude'` キーの互換性メモを追記 |
