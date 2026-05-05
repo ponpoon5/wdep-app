@@ -23,7 +23,8 @@ export default function SessionPage() {
     if (!activeSession) {
       startSession();
     }
-  }, [activeSession, startSession]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const question = QUESTIONS.find((q) => q.id === currentQuestionId);
 
