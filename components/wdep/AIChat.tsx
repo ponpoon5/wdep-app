@@ -104,17 +104,10 @@ export function AIChat({ question, currentAnswer, wantsAnswers, initialMessages 
             </span>
           )}
         </button>
-        <div className="flex items-center gap-2">
-          <select
-            value={preferredModel}
-            onChange={(e) => setPreferredModel(e.target.value as AIModel)}
-            className="text-xs bg-white border border-violet-200 rounded-full px-2 py-1 text-violet-700 focus:outline-none"
-          >
-            <option value="claude-haiku">✦ Haiku（安）</option>
-            <option value="claude-sonnet">✦ Sonnet</option>
-            <option value="claude-opus">✦ Opus（高）</option>
-            <option value="gemini">✦ Gemini（安）</option>
-          </select>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-violet-500 border border-violet-200 rounded-full px-2 py-0.5 bg-white">
+            {preferredModel === 'gemini' ? 'Gemini' : preferredModel.replace('claude-', '')}
+          </span>
           <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-violet-700">
             {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
@@ -123,6 +116,27 @@ export function AIChat({ question, currentAnswer, wantsAnswers, initialMessages 
 
       {isOpen && (
         <div className="border-t border-violet-100">
+          <div className="flex gap-1.5 px-3 pt-2 pb-1 flex-wrap">
+            {([
+              { value: 'claude-haiku', label: 'Haiku', note: '安' },
+              { value: 'claude-sonnet', label: 'Sonnet', note: '' },
+              { value: 'claude-opus', label: 'Opus', note: '高' },
+              { value: 'gemini', label: 'Gemini', note: '安' },
+            ] as const).map(({ value, label, note }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPreferredModel(value)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  preferredModel === value
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white text-violet-600 border-violet-200 hover:bg-violet-50'
+                }`}
+              >
+                {label}{note && <span className="ml-0.5 opacity-70">({note})</span>}
+              </button>
+            ))}
+          </div>
           <div className="max-h-72 overflow-y-auto p-3 space-y-3">
             {messages.length === 0 && (
               <p className="text-xs text-gray-400 text-center py-4">
