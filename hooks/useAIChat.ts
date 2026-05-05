@@ -46,6 +46,8 @@ export function useAIChat({ systemPrompt, onMessage }: UseAIChatOptions) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let accumulated = '';
+        let usageBuffer = '';
+        let inUsage = false;
 
         const assistantMsg: ChatMessage = {
           role: 'assistant',
@@ -59,15 +61,15 @@ export function useAIChat({ systemPrompt, onMessage }: UseAIChatOptions) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
+          if (inUsage) {
+            usageBuffer += chunk;
+            continue;
+          }
           const markerIdx = chunk.indexOf('\x00USAGE:');
           if (markerIdx !== -1) {
             accumulated += chunk.slice(0, markerIdx);
-            try {
-              const usage = JSON.parse(chunk.slice(markerIdx + 7));
-              recordUsage(usage);
-              const cost = calcCost(usage.model as UsageModel, usage.inputTokens, usage.outputTokens);
-              setLastCost(toYen(cost));
-            } catch { /* ignore */ }
+            usageBuffer += chunk.slice(markerIdx + 7);
+            inUsage = true;
           } else {
             accumulated += chunk;
           }
@@ -79,6 +81,15 @@ export function useAIChat({ systemPrompt, onMessage }: UseAIChatOptions) {
             };
             return updated;
           });
+        }
+
+        if (usageBuffer) {
+          try {
+            const usage = JSON.parse(usageBuffer);
+            recordUsage(usage);
+            const cost = calcCost(usage.model as UsageModel, usage.inputTokens, usage.outputTokens);
+            setLastCost(toYen(cost));
+          } catch { /* ignore */ }
         }
 
         const finalMsg: ChatMessage = { ...assistantMsg, content: accumulated };

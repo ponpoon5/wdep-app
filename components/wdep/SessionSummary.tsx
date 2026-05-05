@@ -124,21 +124,31 @@ export function SessionSummary({ session, onRestart }: SessionSummaryProps) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let accumulated = '';
+      let usageBuffer = '';
+      let inUsage = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
+        if (inUsage) {
+          usageBuffer += chunk;
+          continue;
+        }
         const markerIdx = chunk.indexOf('\x00USAGE:');
         if (markerIdx !== -1) {
           accumulated += chunk.slice(0, markerIdx);
-          try {
-            const usage = JSON.parse(chunk.slice(markerIdx + 7));
-            recordUsage(usage);
-          } catch { /* ignore */ }
+          usageBuffer += chunk.slice(markerIdx + 7);
+          inUsage = true;
         } else {
           accumulated += chunk;
         }
         setAdvice(accumulated);
+      }
+      if (usageBuffer) {
+        try {
+          const usage = JSON.parse(usageBuffer);
+          recordUsage(usage);
+        } catch { /* ignore */ }
       }
     } finally {
       setIsLoadingAdvice(false);

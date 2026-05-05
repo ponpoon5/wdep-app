@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { recordUsage } from '@/lib/usage';
 
 const SAMIC_ITEMS = [
   {
@@ -112,14 +113,33 @@ export function SAMICChecker({ answer, checks, onChecksChange }: SAMICCheckerPro
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let accumulated = '';
+      let usageBuffer = '';
+      let inUsage = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
+        if (inUsage) {
+          usageBuffer += chunk;
+          continue;
+        }
         const markerIdx = chunk.indexOf('\x00USAGE:');
-        accumulated += markerIdx !== -1 ? chunk.slice(0, markerIdx) : chunk;
+        if (markerIdx !== -1) {
+          accumulated += chunk.slice(0, markerIdx);
+          usageBuffer += chunk.slice(markerIdx + 7);
+          inUsage = true;
+        } else {
+          accumulated += chunk;
+        }
         setAiResult(accumulated);
+      }
+
+      if (usageBuffer) {
+        try {
+          const usage = JSON.parse(usageBuffer);
+          recordUsage(usage);
+        } catch { /* ignore */ }
       }
     } finally {
       setIsEvaluating(false);
