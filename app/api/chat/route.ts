@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const geminiModel = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-lite',
+        model: 'gemini-1.5-flash',
         systemInstruction: systemPrompt,
       });
 
