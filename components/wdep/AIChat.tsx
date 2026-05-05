@@ -5,6 +5,7 @@ import { Send, Bot, User, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { useAIChat } from '@/hooks/useAIChat';
 import { ChatMessage, Question } from '@/lib/types';
 import { WDEP_KNOWLEDGE } from '@/lib/wdep-knowledge';
+import { useSessionStore } from '@/store/sessionStore';
 import { Button } from '../ui/Button';
 
 interface AIChatProps {
@@ -54,10 +55,12 @@ export function AIChat({ question, currentAnswer, wantsAnswers, initialMessages 
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { preferredModel, setPreferredModel } = useSessionStore();
 
   const systemPrompt = buildSystemPrompt(question, currentAnswer, wantsAnswers);
-  const { messages, isLoading, sendMessage, resetMessages, model, setModel, lastCost } = useAIChat({
+  const { messages, isLoading, sendMessage, resetMessages, lastCost } = useAIChat({
     systemPrompt,
+    model: preferredModel,
     onMessage,
   });
 
@@ -104,10 +107,10 @@ export function AIChat({ question, currentAnswer, wantsAnswers, initialMessages 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setModel(model === 'claude' ? 'gemini' : 'claude')}
+            onClick={() => setPreferredModel(preferredModel === 'claude' ? 'gemini' : 'claude')}
             className="text-xs bg-white border border-violet-200 rounded-full px-3 py-2"
           >
-            {model === 'claude' ? '✦ Claude' : '✦ Gemini'}
+            {preferredModel === 'claude' ? '✦ Claude' : '✦ Gemini'}
           </button>
           <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-violet-700">
             {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}

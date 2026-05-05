@@ -126,6 +126,7 @@ export default function SessionPage() {
 
         {question.phase === 'P' && (
           <SAMICChecker
+            key={currentQuestionId}
             answer={activeSession.answers[currentQuestionId] ?? ''}
             checks={activeSession.samicChecks?.[currentQuestionId] ?? []}
             onChecksChange={(checks) => setSamicChecks(currentQuestionId, checks)}

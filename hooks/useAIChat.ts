@@ -8,13 +8,13 @@ export type AIModel = 'claude' | 'gemini';
 
 interface UseAIChatOptions {
   systemPrompt: string;
+  model: AIModel;
   onMessage?: (message: ChatMessage) => void;
 }
 
-export function useAIChat({ systemPrompt, onMessage }: UseAIChatOptions) {
+export function useAIChat({ systemPrompt, model, onMessage }: UseAIChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState<AIModel>('claude');
   const [lastCost, setLastCost] = useState<string | null>(null);
 
   const sendMessage = useCallback(
@@ -105,5 +105,5 @@ export function useAIChat({ systemPrompt, onMessage }: UseAIChatOptions) {
     setMessages(initial);
   }, []);
 
-  return { messages, isLoading, sendMessage, resetMessages, model, setModel, lastCost };
+  return { messages, isLoading, sendMessage, resetMessages, lastCost };
 }

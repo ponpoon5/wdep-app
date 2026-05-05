@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { recordUsage } from '@/lib/usage';
+import { useSessionStore } from '@/store/sessionStore';
 
 const SAMIC_ITEMS = [
   {
@@ -81,6 +82,7 @@ export function SAMICChecker({ answer, checks, onChecksChange }: SAMICCheckerPro
   const [isOpen, setIsOpen] = useState(false);
   const [aiResult, setAiResult] = useState('');
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const { preferredModel } = useSessionStore();
 
   const safeChecks = checks.length === SAMIC_ITEMS.length ? checks : EMPTY_CHECKS;
   const score = safeChecks.filter(Boolean).length;
@@ -104,7 +106,7 @@ export function SAMICChecker({ answer, checks, onChecksChange }: SAMICCheckerPro
         body: JSON.stringify({
           messages: [{ role: 'user', content: `以下の行動計画をSAMIC3基準で評価してください：\n\n${answer}` }],
           systemPrompt: AI_SYSTEM_PROMPT,
-          model: 'claude',
+          model: preferredModel,
           maxTokens: 600,
         }),
       });

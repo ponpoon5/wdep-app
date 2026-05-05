@@ -4,9 +4,12 @@ import { create } from 'zustand';
 import { WDEPSession, ChatMessage } from '@/lib/types';
 import { saveSession, createSession } from '@/lib/storage';
 
+export type AIModel = 'claude' | 'gemini';
+
 interface SessionStore {
   activeSession: WDEPSession | null;
   currentQuestionId: number;
+  preferredModel: AIModel;
   startSession: () => void;
   loadSession: (session: WDEPSession) => void;
   setAnswer: (questionId: number, answer: string) => void;
@@ -16,11 +19,13 @@ interface SessionStore {
   completeSession: () => void;
   goToQuestion: (id: number) => void;
   clearSession: () => void;
+  setPreferredModel: (model: AIModel) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   activeSession: null,
   currentQuestionId: 1,
+  preferredModel: 'claude',
 
   startSession: () => {
     const session = createSession();
@@ -101,4 +106,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   goToQuestion: (id) => set({ currentQuestionId: id }),
 
   clearSession: () => set({ activeSession: null, currentQuestionId: 1 }),
+
+  setPreferredModel: (model) => set({ preferredModel: model }),
 }));
