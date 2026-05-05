@@ -41,6 +41,10 @@ export function useAIChat({ systemPrompt, model, onMessage }: UseAIChatOptions) 
           body: JSON.stringify({ messages: apiMessages, systemPrompt, model }),
         });
 
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || `APIエラー (${res.status})`);
+        }
         if (!res.body) throw new Error('No response body');
 
         const reader = res.body.getReader();
@@ -94,6 +98,14 @@ export function useAIChat({ systemPrompt, model, onMessage }: UseAIChatOptions) 
 
         const finalMsg: ChatMessage = { ...assistantMsg, content: accumulated };
         onMessage?.(finalMsg);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const errorMsg: ChatMessage = {
+          role: 'assistant',
+          content: `エラー: ${errMsg}`,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
       } finally {
         setIsLoading(false);
       }
