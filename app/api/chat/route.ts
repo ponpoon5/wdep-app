@@ -7,8 +7,16 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
 
 const USAGE_MARKER = '\x00USAGE:';
 
+const CLAUDE_MODEL_IDS: Record<string, string> = {
+  'claude-haiku':  'claude-haiku-4-5-20251001',
+  'claude-sonnet': 'claude-sonnet-4-6',
+  'claude-opus':   'claude-opus-4-7',
+  // legacy
+  'claude':        'claude-sonnet-4-6',
+};
+
 export async function POST(req: NextRequest) {
-  const { messages, systemPrompt, model = 'claude', maxTokens = 1024 } = await req.json();
+  const { messages, systemPrompt, model = 'claude-sonnet', maxTokens = 1024 } = await req.json();
   const encoder = new TextEncoder();
 
   if (model === 'gemini') {
@@ -48,8 +56,10 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const claudeModelId = CLAUDE_MODEL_IDS[model] ?? CLAUDE_MODEL_IDS['claude-sonnet'];
+
   const stream = await anthropic.messages.stream({
-    model: 'claude-sonnet-4-6',
+    model: claudeModelId,
     max_tokens: maxTokens,
     system: systemPrompt,
     messages,
@@ -71,7 +81,7 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(chunk.delta.text));
         }
       }
-      const usage = { model: 'claude', inputTokens, outputTokens };
+      const usage = { model, inputTokens, outputTokens };
       controller.enqueue(encoder.encode(USAGE_MARKER + JSON.stringify(usage)));
       controller.close();
     },

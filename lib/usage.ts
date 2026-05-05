@@ -1,16 +1,22 @@
-export type AIModel = 'claude' | 'gemini';
+export type AIModel = 'claude-haiku' | 'claude-sonnet' | 'claude-opus' | 'gemini';
 
 const JPY_RATE = 155;
 
 const USAGE_KEY = 'wdep_api_usage';
 
-const PRICES: Record<AIModel, { input: number; output: number }> = {
-  claude: { input: 3 / 1_000_000, output: 15 / 1_000_000 },
-  gemini: { input: 0.10 / 1_000_000, output: 0.40 / 1_000_000 },
+// USD per token
+const PRICES: Record<string, { input: number; output: number }> = {
+  'claude-haiku':  { input: 0.80  / 1_000_000, output: 4.00  / 1_000_000 },
+  'claude-sonnet': { input: 3.00  / 1_000_000, output: 15.00 / 1_000_000 },
+  'claude-opus':   { input: 15.00 / 1_000_000, output: 75.00 / 1_000_000 },
+  'gemini':        { input: 0.10  / 1_000_000, output: 0.40  / 1_000_000 },
+  // legacy key kept for old localStorage entries
+  'claude':        { input: 3.00  / 1_000_000, output: 15.00 / 1_000_000 },
 };
 
-export function calcCost(model: AIModel, inputTokens: number, outputTokens: number): number {
-  return inputTokens * PRICES[model].input + outputTokens * PRICES[model].output;
+export function calcCost(model: string, inputTokens: number, outputTokens: number): number {
+  const price = PRICES[model] ?? PRICES['claude-sonnet'];
+  return inputTokens * price.input + outputTokens * price.output;
 }
 
 export function toYen(usd: number): string {
@@ -20,7 +26,7 @@ export function toYen(usd: number): string {
 }
 
 interface UsageEntry {
-  model: AIModel;
+  model: string;
   inputTokens: number;
   outputTokens: number;
 }

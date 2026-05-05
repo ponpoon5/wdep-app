@@ -2,9 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import { ChatMessage } from '@/lib/types';
-import { recordUsage, calcCost, toYen, AIModel as UsageModel } from '@/lib/usage';
+import { recordUsage, calcCost, toYen, AIModel } from '@/lib/usage';
 
-export type AIModel = 'claude' | 'gemini';
+export type { AIModel };
 
 interface UseAIChatOptions {
   systemPrompt: string;
@@ -87,7 +87,7 @@ export function useAIChat({ systemPrompt, model, onMessage }: UseAIChatOptions) 
           try {
             const usage = JSON.parse(usageBuffer);
             recordUsage(usage);
-            const cost = calcCost(usage.model as UsageModel, usage.inputTokens, usage.outputTokens);
+            const cost = calcCost(usage.model, usage.inputTokens, usage.outputTokens);
             setLastCost(toYen(cost));
           } catch { /* ignore */ }
         }

@@ -3,8 +3,9 @@
 import { create } from 'zustand';
 import { WDEPSession, ChatMessage } from '@/lib/types';
 import { saveSession, createSession } from '@/lib/storage';
+import { AIModel } from '@/lib/usage';
 
-export type AIModel = 'claude' | 'gemini';
+export type { AIModel };
 
 interface SessionStore {
   activeSession: WDEPSession | null;
@@ -25,7 +26,7 @@ interface SessionStore {
 export const useSessionStore = create<SessionStore>((set, get) => ({
   activeSession: null,
   currentQuestionId: 1,
-  preferredModel: 'claude',
+  preferredModel: 'claude-sonnet',
 
   startSession: () => {
     const session = createSession();

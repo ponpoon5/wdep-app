@@ -105,13 +105,16 @@ export function AIChat({ question, currentAnswer, wantsAnswers, initialMessages 
           )}
         </button>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPreferredModel(preferredModel === 'claude' ? 'gemini' : 'claude')}
-            className="text-xs bg-white border border-violet-200 rounded-full px-3 py-2"
+          <select
+            value={preferredModel}
+            onChange={(e) => setPreferredModel(e.target.value as Parameters<typeof setPreferredModel>[0])}
+            className="text-xs bg-white border border-violet-200 rounded-full px-2 py-1 text-violet-700 focus:outline-none"
           >
-            {preferredModel === 'claude' ? '✦ Claude' : '✦ Gemini'}
-          </button>
+            <option value="claude-haiku">✦ Haiku（安）</option>
+            <option value="claude-sonnet">✦ Sonnet</option>
+            <option value="claude-opus">✦ Opus（高）</option>
+            <option value="gemini">✦ Gemini（安）</option>
+          </select>
           <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-violet-700">
             {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
