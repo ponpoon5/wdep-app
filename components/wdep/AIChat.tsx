@@ -5,7 +5,7 @@ import { Send, Bot, User, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { useAIChat } from '@/hooks/useAIChat';
 import { ChatMessage, Question } from '@/lib/types';
 import { WDEP_KNOWLEDGE } from '@/lib/wdep-knowledge';
-import { useSessionStore } from '@/store/sessionStore';
+import { useSessionStore, AIModel } from '@/store/sessionStore';
 import { Button } from '../ui/Button';
 
 interface AIChatProps {
@@ -107,7 +107,7 @@ export function AIChat({ question, currentAnswer, wantsAnswers, initialMessages 
         <div className="flex items-center gap-2">
           <select
             value={preferredModel}
-            onChange={(e) => setPreferredModel(e.target.value as Parameters<typeof setPreferredModel>[0])}
+            onChange={(e) => setPreferredModel(e.target.value as AIModel)}
             className="text-xs bg-white border border-violet-200 rounded-full px-2 py-1 text-violet-700 focus:outline-none"
           >
             <option value="claude-haiku">✦ Haiku（安）</option>
